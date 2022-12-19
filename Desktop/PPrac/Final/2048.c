@@ -2,11 +2,14 @@
 #include <conio.h>
 #include <stdlib.h>
 #include <time.h>
+
 #define SIZE 4
+
 #define DIR_W 1
 #define DIR_A 2
 #define DIR_S 3
 #define DIR_D 4 
+
 #define WIN 2
 #define LOSE 1
 
@@ -128,6 +131,10 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
     
     
 
+}
+
+void add_ranking(SCORE score){
+    /* open a txt file and add score*/
 }
 
 
