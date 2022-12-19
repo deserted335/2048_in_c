@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <stdlib.h>
+#include <time.h>
 #define SIZE 4
 #define DIR_W 1
 #define DIR_A 2
@@ -22,7 +23,7 @@ void action(int ***dir_board, SCORE *score){
     /* along the w/a/s/d direction board, move and merge numbers. */
     /* move numbers */
     int nums[SIZE];
-    int k = 0, dummy, ch, flag = 1;
+    int k = 0, dummy, ch, flag = 0;
     for (int i = 0; i < SIZE; i++)
     {
         /* moving numbers */
@@ -36,7 +37,6 @@ void action(int ***dir_board, SCORE *score){
         do{*dir_board[i][SIZE - 1 - k] = nums[k];} while(k--);
         /* merge numbers */
         ch = 0;
-        flag = 0;
         while(!flag){
             if(*dir_board[i][ch] == *dir_board[i][ch+1] && !*dir_board[i][ch]){
                 *dir_board[i][ch+1] += *dir_board[i][ch];
@@ -45,8 +45,8 @@ void action(int ***dir_board, SCORE *score){
             }
             if(++ch >= 3) break;
         }
-        (flag) ? (*score).combo += 1 : (*score).combo = 0;
     }
+    (flag) ? (*score).combo += 1 : (*score).combo = 0;
     return;
 }
 
@@ -79,6 +79,54 @@ int ***dir_board(int **board, int dir){
             break;
     }
     return res;
+}
+
+void random_gen(int board[SIZE][SIZE]){
+    
+    int k = 0;
+    for(register int i = 0; i < SIZE; i++)
+        for(register int j = 0; j < SIZE; j++)
+            if(!board[i][j]) k++;
+    
+    k = rand() % k + 1;
+    
+    for(register int i = 0; i < SIZE; i++)
+        for(register int j = 0; j < SIZE; j++){
+            if(!board[i][j]) k--;
+            if(!k) board[i][j] = (rand()%2)? 2 : 4;
+        }
+    
+    return;
+
+}
+
+int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
+    /* check if move was successful and decide game over or clear */
+    /*move check*/
+    int flag = 0;
+    for(register int i = 0; i < SIZE; i++){
+        for(register int j = 0; j < SIZE; j++){
+            if(board[i][j] != prev_board[i][j]){
+                flag = 1;
+                break;
+            }
+        }
+    }
+    if(flag) {
+        (*score).moves += 1;
+    }
+
+    /* win or lose or continue check */
+
+    for(register int i = 0; i < SIZE; i++){
+        for(register int j = 0; j < SIZE; j++){
+            prev_board[i][j] = board[i][j];
+        }
+    }
+    
+
+    
+
 }
 
 
@@ -132,6 +180,7 @@ int show_ranking(){
 
 
 int main(void){
+    srand((unsigned int)time(NULL)); 
     /*keyboard press -> update screen*/    
     int ch;
     int flag = 1;
