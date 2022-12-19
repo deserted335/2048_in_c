@@ -7,17 +7,16 @@
 #define DIR_A 2
 #define DIR_S 3
 #define DIR_D 4 
-
+#define WIN 2
+#define LOSE 1
 
 typedef struct score{
-    char name;
+    char name[30];
     int isWin;
     int moves;
     int combo;
 }SCORE;
 
-int board[4][4] = {0};
-int prev_board[4][4] = {0};
 
 void action(int ***dir_board, SCORE *score){
     /* along the w/a/s/d direction board, move and merge numbers. */
@@ -46,7 +45,9 @@ void action(int ***dir_board, SCORE *score){
             if(++ch >= 3) break;
         }
     }
-    (flag) ? (*score).combo += 1 : (*score).combo = 0;
+    if(flag) (*score).combo += 1;
+    else (*score).combo = 0;
+
     return;
 }
 
@@ -116,7 +117,7 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
         (*score).moves += 1;
     }
 
-    /* win or lose or continue check */
+    /* win or lose or continue check + time */
 
     for(register int i = 0; i < SIZE; i++){
         for(register int j = 0; j < SIZE; j++){
@@ -124,7 +125,7 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
         }
     }
     
-
+    
     
 
 }
@@ -142,12 +143,68 @@ void main_menu(){
     return;
 }
 
+
+void display_board(int board[SIZE][SIZE], SCORE score){
+    /* print board status and combo, moves, remaining time. */
+}
+
+
 int in_game(){
-    printf("this is in game. press any key to exit\n");
-    int ch;
-    while(1){
-        while(ch = _getch()) return 1;
+    /* From start to ranking */
+    int ch, wl, flag = 1;
+    SCORE new_score;
+    new_score.combo = 0;
+    new_score.moves = 0;
+    int board[4][4] = {0};
+    int prev_board[4][4] = {0};
+
+    random_gen(board);
+    for(register int i = 0; i < SIZE; i++){
+        for(register int j = 0; j < SIZE; j++){
+            prev_board[i][j] = board[i][j];
+        }
     }
+
+    while(flag){
+        system("cls");
+        display_board(board, new_score);
+        while(ch = _getch()){
+            switch (ch){
+                case 'w':
+                    action(dir_board(board, &new_score), DIR_W);
+                    break;
+                case 'a':
+                    action(dir_board(board, &new_score), DIR_A);
+                    break;
+                case 's':
+                    action(dir_board(board, &new_score), DIR_S);
+                    break;
+                case 'd':
+                    action(dir_board(board, &new_score), DIR_D);
+                    break;
+                default:
+                    break; 
+            }
+        }
+        if (wl = check(board, prev_board, &new_score))
+            flag = 0;
+    }
+
+    if(wl == WIN) {
+        printf("You Win! Your name? : ");
+        new_score.isWin = WIN;
+        scanf("%s", new_score.name);
+        add_ranking(new_score);
+        return 1;
+    }
+    else if (wl == LOSE){
+        printf("You Lose. Your name? : ");
+        new_score.isWin = LOSE;
+        scanf("%s", new_score.name);
+        add_ranking(new_score);
+        return 1;
+    }
+
     return 0;
 }
 
