@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <conio.h>
 #include <stdlib.h>
+#define SIZE 4
+#define DIR_W 1
+#define DIR_A 2
+#define DIR_S 3
+#define DIR_D 4 
+
 
 typedef struct score{
     char name;
@@ -8,6 +14,73 @@ typedef struct score{
     int moves;
     int combo;
 }SCORE;
+
+int board[4][4] = {0};
+int prev_board[4][4] = {0};
+
+void action(int ***dir_board, SCORE *score){
+    /* along the w/a/s/d direction board, move and merge numbers. */
+    /* move numbers */
+    int nums[SIZE];
+    int k = 0, dummy, ch, flag = 1;
+    for (int i = 0; i < SIZE; i++)
+    {
+        /* moving numbers */
+        k = 0;
+        for (int j = 0; j < SIZE; j++){
+            if(dummy = *dir_board[i][j]){
+                nums[k++] = dummy; 
+                *dir_board[i][j] = 0;
+            }
+        }
+        do{*dir_board[i][SIZE - 1 - k] = nums[k];} while(k--);
+        /* merge numbers */
+        ch = 0;
+        flag = 0;
+        while(!flag){
+            if(*dir_board[i][ch] == *dir_board[i][ch+1] && !*dir_board[i][ch]){
+                *dir_board[i][ch+1] += *dir_board[i][ch];
+                *dir_board[i][ch] = 0;
+                flag = 1;
+            }
+            if(++ch >= 3) break;
+        }
+        (flag) ? (*score).combo += 1 : (*score).combo = 0;
+    }
+    return;
+}
+
+int ***dir_board(int **board, int dir){
+    /* pointer array of board, corresponding to w/a/s/d */
+    int i, j;
+    int ***res[SIZE][SIZE];
+    switch (dir){
+        case DIR_W:
+            for(i = 0; i < SIZE; i++)
+                for(j = 0; j < SIZE; j++)
+                    res[i][j] = &board[3 - j][i];
+            break;
+        case DIR_A:
+            for(i = 0; i < SIZE; i++)
+                for(j = 0; j < SIZE; j++)
+                    res[i][j] = &board[i][3-j];
+            break;
+
+        case DIR_S:
+            for(i = 0; i < SIZE; i++)
+                for(j = 0; j < SIZE; j++)
+                    res[i][j] = &board[j][i];
+            break;
+
+        case DIR_D:
+            for(i = 0; i < SIZE; i++)
+                for(j = 0; j < SIZE; j++)
+                    res[i][j] = &board[i][j];
+            break;
+    }
+    return res;
+}
+
 
 
 void main_menu(){
