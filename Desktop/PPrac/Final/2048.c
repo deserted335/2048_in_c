@@ -13,11 +13,14 @@
 #define WIN 2
 #define LOSE 1
 
+#define T_LIMIT 900
+
 typedef struct score{
     char name[30];
     int isWin;
     int moves;
     int combo;
+    time_t curTime;
 }SCORE;
 
 
@@ -85,13 +88,19 @@ int ***dir_board(int **board, int dir){
     return res;
 }
 
-void random_gen(int board[SIZE][SIZE]){
-    
+int blank(int board[SIZE][SIZE]){
     int k = 0;
     for(register int i = 0; i < SIZE; i++)
         for(register int j = 0; j < SIZE; j++)
             if(!board[i][j]) k++;
+    return k;
+}
+
+
+void random_gen(int board[SIZE][SIZE]){
     
+    int k;
+    if(!(k = blank(board))) return; 
     k = rand() % k + 1;
     
     for(register int i = 0; i < SIZE; i++)
@@ -104,33 +113,74 @@ void random_gen(int board[SIZE][SIZE]){
 
 }
 
-int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
+int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score, time_t start){
     /* check if move was successful and decide game over or clear */
     /*move check*/
     int flag = 0;
-    for(register int i = 0; i < SIZE; i++){
-        for(register int j = 0; j < SIZE; j++){
-            if(board[i][j] != prev_board[i][j]){
-                flag = 1;
-                break;
+    for (register int i = 0; i < SIZE; i++)
+    {
+        for (register int j = 0; j < SIZE; j++)
+        {
+            if (board[i][j] != prev_board[i][j])
+            {
+                    flag = 1;
+                    break;
             }
         }
     }
-    if(flag) {
+    if (flag)
+    {
         (*score).moves += 1;
+        random_gen(board);
+        for (register int i = 0; i < SIZE; i++)
+        {
+            for (register int j = 0; j < SIZE; j++)
+            {
+                    prev_board[i][j] = board[i][j];
+            }
+        }
     }
 
     /* win or lose or continue check + time */
 
-    for(register int i = 0; i < SIZE; i++){
-        for(register int j = 0; j < SIZE; j++){
-            prev_board[i][j] = board[i][j];
+    if (score->curTime >= start + T_LIMIT)
+        return LOSE;
+
+    for (int x; x < SIZE; x++)
+    {
+        for (int y; y < SIZE; y++)
+        {
+            if (board[x][y] == 2048)
+                    return WIN;
         }
     }
-    
-    
-    
 
+
+    if (!blank(board))
+    {
+        for (int x; x < SIZE; x++)
+        {
+            for (int y; y < SIZE; y++)
+            {
+
+                for (int dx = (x > 0 ? -1 : 0); dx <= (x < SIZE - 1 ? 1 : 0); ++dx)
+                {
+                    for (int dy = (y > 0 ? -1 : 0); dy <= (y < SIZE - 1 ? 1 : 0); ++dy)
+                    {
+                        if (dx + dy == 1 || dx + dy == -1)
+                        {
+                            if (board[x][y] && (board[x][y] == board[x + dx][y + dy]))
+                                return 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        return LOSE;
+    }
+
+    return 0;
 }
 
 void add_ranking(SCORE score){
@@ -150,11 +200,26 @@ void main_menu(){
     return;
 }
 
-
-void display_board(int board[SIZE][SIZE], SCORE score){
+void display_board(int board[SIZE][SIZE], SCORE score, time_t start)
+{
     /* print board status and combo, moves, remaining time. */
-}
+    time_t remain = start + T_LIMIT - score.curTime;
+    int row, columns;
 
+    printf("%d combo, %d moves, %d : %d ...\n", score.combo, score.moves, remain / 60, remain % 60);
+
+    for (row = 0; row < SIZE; row++)
+    {
+        for (columns = 0; columns < SIZE; columns++)
+        {
+            printf("%d     ", board[row][columns]);
+        }
+        printf("\n");
+    }
+
+    printf(">>>");
+    return;
+}
 
 int in_game(){
     /* From start to ranking */
@@ -162,6 +227,7 @@ int in_game(){
     SCORE new_score;
     new_score.combo = 0;
     new_score.moves = 0;
+    time_t start = time(&new_score.curTime);
     int board[4][4] = {0};
     int prev_board[4][4] = {0};
 
@@ -174,7 +240,7 @@ int in_game(){
 
     while(flag){
         system("cls");
-        display_board(board, new_score);
+        display_board(board, new_score, start);
         while(ch = _getch()){
             switch (ch){
                 case 'w':
@@ -193,13 +259,14 @@ int in_game(){
                     break; 
             }
         }
-        if (wl = check(board, prev_board, &new_score))
+        if (wl = check(board, prev_board, &new_score, start))
             flag = 0;
     }
 
     if(wl == WIN) {
         printf("You Win! Your name? : ");
         new_score.isWin = WIN;
+        new_score.curTime = new_score.curTime - start;
         scanf("%s", new_score.name);
         add_ranking(new_score);
         return 1;
@@ -207,6 +274,7 @@ int in_game(){
     else if (wl == LOSE){
         printf("You Lose. Your name? : ");
         new_score.isWin = LOSE;
+        new_score.curTime = new_score.curTime - start;
         scanf("%s", new_score.name);
         add_ranking(new_score);
         return 1;
