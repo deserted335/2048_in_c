@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #define SIZE 4
 
@@ -21,6 +22,8 @@ typedef struct score{
     int isWin;
     int moves;
     int combo;
+    int cur_combo;
+    int Total_score;
     clock_t start;
     clock_t Total_Time;
 }SCORE;
@@ -29,12 +32,13 @@ typedef struct score{
 /* TO_DO
     1. action debug
     FINISH >> 2. show_ranking, add_ranking complete
-    3. report
+    FINISH >> 3. report
         3-1. build C file in win, MacOS, Linux
         3-2. How to play game
         3-3. how to implement several features.
         3-4. troubleshooting points. 
-    4. combo : maximum combos 
+    FINISH >> 4. combo : maximum combos 
+    FINISH >> 5. ranking score sorting
     first, complete 2 and finish 3-1,2,3. Debugging, complete 3-4.
 */
 
@@ -43,7 +47,7 @@ void action(int *dir_board[SIZE][SIZE], SCORE *score){
     /* along the w/a/s/d direction board, move and merge numbers. */
     /* move numbers */
     int nums[SIZE];
-    int k = 0, dummy, ch, flag = 0;
+    int k = 0, dummy, ch, flag = 0, merger;
     for (int i = 0; i < SIZE; i++)
     {
         /* moving numbers */
@@ -58,16 +62,18 @@ void action(int *dir_board[SIZE][SIZE], SCORE *score){
         /* merge numbers */
         ch = 0;
         while(!flag){
-            if(*dir_board[i][ch] == *dir_board[i][ch+1] && !*dir_board[i][ch]){
+            if(*dir_board[i][ch] == *dir_board[i][ch+1] && !(merger = *dir_board[i][ch])){
                 *dir_board[i][ch+1] += *dir_board[i][ch];
                 *dir_board[i][ch] = 0;
+                (*score).Total_score += (int) log2(merger) * merger * 2;
                 flag = 1;
             }
             if(++ch >= SIZE - 1) break;
         }
     }
-    if(flag) (*score).combo += 1;
-    else (*score).combo = 0;
+    if(flag) (*score).cur_combo += 1;
+    else (*score).cur_combo = 0;
+    if((*score).combo < (*score).cur_combo) (*score).combo = (*score).cur_combo;
 
     return;
 }
@@ -208,29 +214,30 @@ void add_ranking(SCORE record){
 
     if(!fp || !out){
         fprintf(stderr, "Failed to open save files.");
-        exit(1);
+        if(_getch()) exit(1);
     }
 
-    while (fscanf(fp, "%s %d %d %ld %d\n", &tmp.name,  &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo) == 5)
+    while (fscanf(fp, "%s %d %d %ld %d %d\n", &tmp.name,  &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) == 6)
     {
         if (flag)
-            fprintf(out, "%s %d %d %ld %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo);
+            fprintf(out, "%s %d %d %ld %d %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo, tmp.Total_score);
         else
         {
             if (tmp.isWin < record.isWin)
             {
-                fprintf(out, "%s %d %d %ld %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo);
+                fprintf(out, "%s %d %d %ld %d %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo, record.Total_score);
                 flag = 1;
             }
-            else if (tmp.moves > record.moves)
+            else if (tmp.Total_score < record.Total_score)
             {
-                fprintf(out, "%s %d %d %ld %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo);
+                fprintf(out, "%s %d %d %ld %d %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo, record.Total_score);
                 flag = 1;
             }
-            fprintf(out, "%s %d %d %ld %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo);
+            fprintf(out, "%s %d %d %ld %d %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo, tmp.Total_score);
         }
     }
-
+    /*if there is no record in fp*/
+    if(!flag) fprintf(out, "%s %d %d %ld %d %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo, record.Total_score);
 
     fclose(fp);
     fclose(out);
@@ -238,6 +245,7 @@ void add_ranking(SCORE record){
     if (!rename("tmp.txt", "save.txt"))
     {
         printf("Rename Error");
+        if(_getch()) return;
     }
     return;
 }
@@ -261,7 +269,7 @@ void display_board(int board[SIZE][SIZE], SCORE score)
     int remain = (int) (T_LIMIT - (clock() - score.start) / CLOCKS_PER_SEC);
     register int row, columns;
 
-    printf("%d combo, %d moves, %d : %d ...\n", score.combo, score.moves, remain / 60, remain % 60);
+    printf("%d combo, %d moves, %d score, %d : %d ...\n", score.combo, score.moves, score.Total_score, remain / 60, remain % 60);
 
     for (row = 0; row < SIZE; row++)
     {
@@ -278,11 +286,13 @@ void display_board(int board[SIZE][SIZE], SCORE score)
 
 int in_game(){
     /* From start to ranking */
-    int ch, wl, flag = 1;
+    int ch, wl;
     SCORE new_score;
     new_score.combo = 0;
+    new_score.cur_combo = 0;
     new_score.moves = 0;
     new_score.start = clock();
+    new_score.Total_score = 0;
     int board[SIZE][SIZE] = {0};
     int prev_board[SIZE][SIZE] = {0};
 
@@ -296,7 +306,7 @@ int in_game(){
         }
     }
 
-    while(flag){
+    while(1){
         system("cls");
         display_board(board, new_score);
         if(ch = _getch()){
@@ -321,8 +331,7 @@ int in_game(){
                     break; 
             }
         }
-        if (wl = check(board, prev_board, &new_score))
-            flag = 0;
+        if (wl = check(board, prev_board, &new_score)) break;
     }
 
     free(dir_board);
@@ -376,16 +385,15 @@ int show_ranking(){
             return 1;
     }
 
-
-    printf("===============================================\n");
-    printf("|name    |W or L  |moves   |Time    |combos   |\n");
-    printf("-----------------------------------------------\n");
+    printf("========================================================\n");
+    printf("|name    |W or L  |moves   |Time    |combos   |score   |\n");
+    printf("--------------------------------------------------------\n");
     while(!feof(fp)){
 
-        if(fscanf(fp, "%s %d %d %ld %d \n", &tmp.name, &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo) != 5) break;
-        else printf("|%8s|%8s|%8d|%8d|%8d|\n", tmp.name, (tmp.isWin == WIN)? "Win" : "Lose", tmp.moves, (int) tmp.Total_Time / CLOCKS_PER_SEC, tmp.combo);
+        if(fscanf(fp, "%s %d %d %ld %d %d\n", &tmp.name, &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) != 6) break;
+        else printf("|%8s|%8s|%8d|%8d|%8d|%8d|\n", tmp.name, (tmp.isWin == WIN)? "Win" : "Lose", tmp.moves, (int) tmp.Total_Time / CLOCKS_PER_SEC, tmp.combo, tmp.Total_score);
     }
-    printf("===============================================\n");
+    printf("========================================================\n");
 
 
     fclose(fp);
