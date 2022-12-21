@@ -20,11 +20,25 @@ typedef struct score{
     int isWin;
     int moves;
     int combo;
-    time_t curTime;
+    clock_t start;
+    clock_t Total_Time;
 }SCORE;
 
 
-void action(int ***dir_board, SCORE *score){
+/* TO_DO
+    1. action debug
+    2. show_ranking, add_ranking complete
+    3. report
+        3-1. build C file in win, MacOS, Linux
+        3-2. How to play game
+        3-3. how to implement several features.
+        3-4. troubleshooting points. 
+    
+    first, complete 2 and finish 3-1,2,3. Debugging, complete 3-4.
+*/
+
+
+void action(int *dir_board[SIZE][SIZE], SCORE *score){
     /* along the w/a/s/d direction board, move and merge numbers. */
     /* move numbers */
     int nums[SIZE];
@@ -48,7 +62,7 @@ void action(int ***dir_board, SCORE *score){
                 *dir_board[i][ch] = 0;
                 flag = 1;
             }
-            if(++ch >= 3) break;
+            if(++ch >= SIZE - 1) break;
         }
     }
     if(flag) (*score).combo += 1;
@@ -57,38 +71,38 @@ void action(int ***dir_board, SCORE *score){
     return;
 }
 
-int ***dir_board(int **board, int dir){
+void give_direction(int board[SIZE][SIZE], int dir, int *dir_board[SIZE][SIZE]){
     /* pointer array of board, corresponding to w/a/s/d */
-    int i, j;
-    int ***res[SIZE][SIZE];
+    register int i, j;
     switch (dir){
         case DIR_W:
             for(i = 0; i < SIZE; i++)
                 for(j = 0; j < SIZE; j++)
-                    res[i][j] = &board[3 - j][i];
+                    dir_board[i][j] = &board[SIZE - 1 - j][i];
             break;
         case DIR_A:
             for(i = 0; i < SIZE; i++)
                 for(j = 0; j < SIZE; j++)
-                    res[i][j] = &board[i][3-j];
+                    dir_board[i][j] = &board[i][SIZE - 1 -j];
             break;
 
         case DIR_S:
             for(i = 0; i < SIZE; i++)
                 for(j = 0; j < SIZE; j++)
-                    res[i][j] = &board[j][i];
+                    dir_board[i][j] = &board[j][i];
             break;
 
         case DIR_D:
             for(i = 0; i < SIZE; i++)
                 for(j = 0; j < SIZE; j++)
-                    res[i][j] = &board[i][j];
+                    dir_board[i][j] = &board[i][j];
             break;
     }
-    return res;
+    return;
 }
 
 int blank(int board[SIZE][SIZE]){
+    /* returns how many 0s in the board */
     int k = 0;
     for(register int i = 0; i < SIZE; i++)
         for(register int j = 0; j < SIZE; j++)
@@ -113,7 +127,7 @@ void random_gen(int board[SIZE][SIZE]){
 
 }
 
-int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score, time_t start){
+int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
     /* check if move was successful and decide game over or clear */
     /*move check*/
     int flag = 0;
@@ -141,14 +155,14 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score, time_
         }
     }
 
-    /* win or lose or continue check + time */
+    /* win or lose or continue(0) check + time limit check */
 
-    if (score->curTime >= start + T_LIMIT)
+    if (clock() >= score->start + T_LIMIT * CLOCKS_PER_SEC)
         return LOSE;
 
-    for (int x; x < SIZE; x++)
+    for (register int x; x < SIZE; x++)
     {
-        for (int y; y < SIZE; y++)
+        for (register int y; y < SIZE; y++)
         {
             if (board[x][y] == 2048)
                     return WIN;
@@ -158,18 +172,18 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score, time_
 
     if (!blank(board))
     {
-        for (int x; x < SIZE; x++)
+        /* if board is not blank, check adjacent cells are identical. */
+        for (register int x; x < SIZE; x++)
         {
-            for (int y; y < SIZE; y++)
+            for (register int y; y < SIZE; y++)
             {
-
-                for (int dx = (x > 0 ? -1 : 0); dx <= (x < SIZE - 1 ? 1 : 0); ++dx)
+                for (register int dx = (x > 0 ? -1 : 0); dx <= (x < SIZE - 1 ? 1 : 0); ++dx)
                 {
-                    for (int dy = (y > 0 ? -1 : 0); dy <= (y < SIZE - 1 ? 1 : 0); ++dy)
+                    for (register int dy = (y > 0 ? -1 : 0); dy <= (y < SIZE - 1 ? 1 : 0); ++dy)
                     {
                         if (dx + dy == 1 || dx + dy == -1)
                         {
-                            if (board[x][y] && (board[x][y] == board[x + dx][y + dy]))
+                            if (board[x][y] == board[x + dx][y + dy])
                                 return 0;
                         }
                     }
@@ -185,6 +199,8 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score, time_
 
 void add_ranking(SCORE score){
     /* open a txt file and add score*/
+    printf("added ranking.");
+    return;
 }
 
 
@@ -200,11 +216,11 @@ void main_menu(){
     return;
 }
 
-void display_board(int board[SIZE][SIZE], SCORE score, time_t start)
+void display_board(int board[SIZE][SIZE], SCORE score)
 {
     /* print board status and combo, moves, remaining time. */
-    time_t remain = start + T_LIMIT - score.curTime;
-    int row, columns;
+    int remain = (int) (T_LIMIT - (clock() - score.start) / CLOCKS_PER_SEC);
+    register int row, columns;
 
     printf("%d combo, %d moves, %d : %d ...\n", score.combo, score.moves, remain / 60, remain % 60);
 
@@ -227,9 +243,12 @@ int in_game(){
     SCORE new_score;
     new_score.combo = 0;
     new_score.moves = 0;
-    time_t start = time(&new_score.curTime);
-    int board[4][4] = {0};
-    int prev_board[4][4] = {0};
+    new_score.start = clock();
+    int board[SIZE][SIZE] = {0};
+    int prev_board[SIZE][SIZE] = {0};
+
+    int* (*dir_board)[SIZE];
+    dir_board = malloc(sizeof(int[SIZE][SIZE]));
 
     random_gen(board);
     for(register int i = 0; i < SIZE; i++){
@@ -240,33 +259,39 @@ int in_game(){
 
     while(flag){
         system("cls");
-        display_board(board, new_score, start);
-        while(ch = _getch()){
+        display_board(board, new_score);
+        if(ch = _getch()){
             switch (ch){
                 case 'w':
-                    action(dir_board(board, &new_score), DIR_W);
+                    give_direction(board, DIR_W, dir_board);                      
+                    action(dir_board, &new_score);
                     break;
                 case 'a':
-                    action(dir_board(board, &new_score), DIR_A);
+                    give_direction(board, DIR_A, dir_board);                      
+                    action(dir_board, &new_score);
                     break;
                 case 's':
-                    action(dir_board(board, &new_score), DIR_S);
+                    give_direction(board, DIR_S, dir_board);                      
+                    action(dir_board, &new_score);
                     break;
                 case 'd':
-                    action(dir_board(board, &new_score), DIR_D);
+                    give_direction(board, DIR_D, dir_board);                      
+                    action(dir_board, &new_score);
                     break;
                 default:
                     break; 
             }
         }
-        if (wl = check(board, prev_board, &new_score, start))
+        if (wl = check(board, prev_board, &new_score))
             flag = 0;
     }
+
+    free(dir_board);
 
     if(wl == WIN) {
         printf("You Win! Your name? : ");
         new_score.isWin = WIN;
-        new_score.curTime = new_score.curTime - start;
+        new_score.Total_Time = clock() - new_score.start;
         scanf("%s", new_score.name);
         add_ranking(new_score);
         return 1;
@@ -274,7 +299,7 @@ int in_game(){
     else if (wl == LOSE){
         printf("You Lose. Your name? : ");
         new_score.isWin = LOSE;
-        new_score.curTime = new_score.curTime - start;
+        new_score.Total_Time = clock() - new_score.start;
         scanf("%s", new_score.name);
         add_ranking(new_score);
         return 1;
@@ -296,16 +321,17 @@ int how_to(){
     printf("press any key to exit\n");
     printf("=================\n");
     while(1){
-        while(ch = _getch()) return 1;
+        if(ch = _getch()) return 1;
     }
     return 0;
 }
 
 int show_ranking(){
+    /* open txt file and print ranking. */
     int ch;
     printf("this is ranking. press any key to exit\n");
     while(1){
-        while(ch = _getch()) return 1;
+        if(ch = _getch()) return 1;
     }
     return 0;
 }
@@ -319,7 +345,7 @@ int main(void){
     while(flag){
         system("cls");
         main_menu();
-        while (ch = _getch())
+        if (ch = _getch())
         {
             system("cls");
             switch (ch) {
