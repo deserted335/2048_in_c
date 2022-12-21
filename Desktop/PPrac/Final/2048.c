@@ -296,9 +296,13 @@ int in_game(){
     int board[SIZE][SIZE] = {0};
     int prev_board[SIZE][SIZE] = {0};
 
-    int* (*dir_board)[SIZE];
+    int* (*dir_board)[SIZE] = {0};
     dir_board = malloc(sizeof(int[SIZE][SIZE]));
-
+    if(!dir_board[0][0]) {
+        fprintf(stderr, "Failed to allocate dir_board");
+        if(_getch()) exit(1);
+    }
+    
     random_gen(board);
     for(register int i = 0; i < SIZE; i++){
         for(register int j = 0; j < SIZE; j++){
@@ -385,15 +389,15 @@ int show_ranking(){
             return 1;
     }
 
-    printf("========================================================\n");
-    printf("|name    |W or L  |moves   |Time    |combos   |score   |\n");
-    printf("--------------------------------------------------------\n");
+    printf("=======================================================\n");
+    printf("|name    |W or L  |moves   |Time    |combos  |score   |\n");
+    printf("-------------------------------------------------------\n");
     while(!feof(fp)){
 
         if(fscanf(fp, "%s %d %d %ld %d %d\n", &tmp.name, &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) != 6) break;
         else printf("|%8s|%8s|%8d|%8d|%8d|%8d|\n", tmp.name, (tmp.isWin == WIN)? "Win" : "Lose", tmp.moves, (int) tmp.Total_Time / CLOCKS_PER_SEC, tmp.combo, tmp.Total_score);
     }
-    printf("========================================================\n");
+    printf("=======================================================\n");
 
 
     fclose(fp);
