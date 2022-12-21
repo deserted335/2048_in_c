@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define SIZE 4
@@ -27,13 +28,13 @@ typedef struct score{
 
 /* TO_DO
     1. action debug
-    2. show_ranking, add_ranking complete
+    FINISH >> 2. show_ranking, add_ranking complete
     3. report
         3-1. build C file in win, MacOS, Linux
         3-2. How to play game
         3-3. how to implement several features.
         3-4. troubleshooting points. 
-    
+    4. combo : maximum combos 
     first, complete 2 and finish 3-1,2,3. Debugging, complete 3-4.
 */
 
@@ -197,9 +198,47 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
     return 0;
 }
 
-void add_ranking(SCORE score){
+void add_ranking(SCORE record){
     /* open a txt file and add score*/
-    printf("added ranking.");
+    FILE *fp, *out;
+    fp = fopen("save.txt", "r+");
+    out = fopen("tmp.txt", "w+");
+    SCORE tmp;
+    int flag = 0;
+
+    if(!fp || !out){
+        fprintf(stderr, "Failed to open save files.");
+        exit(1);
+    }
+
+    while (fscanf(fp, "%s %d %d %ld %d\n", &tmp.name,  &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo) == 5)
+    {
+        if (flag)
+            fprintf(out, "%s %d %d %ld %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo);
+        else
+        {
+            if (tmp.isWin < record.isWin)
+            {
+                fprintf(out, "%s %d %d %ld %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo);
+                flag = 1;
+            }
+            else if (tmp.moves > record.moves)
+            {
+                fprintf(out, "%s %d %d %ld %d\n", record.name, record.isWin, record.moves, record.Total_Time, record.combo);
+                flag = 1;
+            }
+            fprintf(out, "%s %d %d %ld %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo);
+        }
+    }
+
+
+    fclose(fp);
+    fclose(out);
+    remove("save.txt");
+    if (!rename("tmp.txt", "save.txt"))
+    {
+        printf("Rename Error");
+    }
     return;
 }
 
@@ -328,10 +367,33 @@ int how_to(){
 
 int show_ranking(){
     /* open txt file and print ranking. */
-    int ch;
-    printf("this is ranking. press any key to exit\n");
-    while(1){
-        if(ch = _getch()) return 1;
+    FILE *fp;
+    SCORE tmp;
+    fp = fopen("save.txt","r+");
+    if(!fp){
+        fprintf(stderr, "Failed to open save.txt");
+        if(_getch())
+            return 1;
+    }
+
+
+    printf("===============================================\n");
+    printf("|name    |W or L  |moves   |Time    |combos   |\n");
+    printf("-----------------------------------------------\n");
+    while(!feof(fp)){
+
+        if(fscanf(fp, "%s %d %d %ld %d \n", &tmp.name, &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo) != 5) break;
+        else printf("|%8s|%8s|%8d|%8d|%8d|\n", tmp.name, (tmp.isWin == WIN)? "Win" : "Lose", tmp.moves, (int) tmp.Total_Time / CLOCKS_PER_SEC, tmp.combo);
+    }
+    printf("===============================================\n");
+
+
+    fclose(fp);
+    printf("press e to exit.");
+    while (1)
+    {
+        if (_getch() == 'e')
+            return 1;
     }
     return 0;
 }
