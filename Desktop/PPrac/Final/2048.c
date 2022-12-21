@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <assert.h>
 
 #define SIZE 4
 
@@ -46,30 +47,57 @@ typedef struct score{
 void action(int *dir_board[SIZE][SIZE], SCORE *score){
     /* along the w/a/s/d direction board, move and merge numbers. */
     /* move numbers */
-    int nums[SIZE];
-    int k = 0, dummy, ch, flag = 0, merger;
+    int nums[SIZE] = {0};
+    int k, ch, dummy,  flag, merger;
     for (int i = 0; i < SIZE; i++)
     {
-        /* moving numbers */
         k = 0;
-        for (int j = 0; j < SIZE; j++){
+        
+        /* moving numbers */
+        for (register int j = 0; j < SIZE; j++){
+            nums[j] = 0; /*initialization starting every i*/
             if(dummy = *dir_board[i][j]){
-                nums[k++] = dummy; 
-                *dir_board[i][j] = 0;
+                nums[k] = dummy;
+                k++;
             }
-        }
-        do{*dir_board[i][SIZE - 1 - k] = nums[k];} while(k--);
+            *dir_board[i][j] = 0;
+        } 
+            
         /* merge numbers */
-        ch = 0;
-        while(!flag){
-            if(*dir_board[i][ch] == *dir_board[i][ch+1] && !(merger = *dir_board[i][ch])){
-                *dir_board[i][ch+1] += *dir_board[i][ch];
-                *dir_board[i][ch] = 0;
-                (*score).Total_score += (int) log2(merger) * merger * 2;
-                flag = 1;
+        ch = k - 2;
+        if(k >= 2){
+            for (register int j = 0; j < k; j++)
+            {
+                *dir_board[i][SIZE - 1 - j] = nums[k - 1 - j];
             }
-            if(++ch >= SIZE - 1) break;
+
+            do{
+                if (*dir_board[i][ch] == *dir_board[i][ch + 1] && (merger = *dir_board[i][ch]))
+                {
+                    *dir_board[i][ch + 1] *= 2;
+                    *dir_board[i][ch] = 0;
+                    (*score).Total_score += (int)log2(merger) * merger * 2;
+                    flag = 1;
+                    break;
+                }
+            }while(--ch >= 0);
+
+            for (register int j = SIZE - 2; j >= 0; j--)
+            {
+                if (*dir_board[i][j] && (!*dir_board[i][j + 1]))
+                {
+                    dummy = *dir_board[i][j];
+                    *dir_board[i][j] = 0;
+                    *dir_board[i][j + 1] = dummy;
+                }
+            }
+
         }
+        else if (k == 1){
+            *dir_board[i][SIZE - 1] = nums[0];
+        }
+        else continue;
+
     }
     if(flag) (*score).cur_combo += 1;
     else (*score).cur_combo = 0;
@@ -124,12 +152,12 @@ void random_gen(int board[SIZE][SIZE]){
     if(!(k = blank(board))) return; 
     k = rand() % k + 1;
     
-    for(register int i = 0; i < SIZE; i++)
+    for(register int i = 0; i < SIZE; i++){
         for(register int j = 0; j < SIZE; j++){
             if(!board[i][j]) k--;
             if(!k) board[i][j] = (rand()%2)? 2 : 4;
         }
-    
+    }
     return;
 
 }
@@ -167,12 +195,11 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
     if (clock() >= score->start + T_LIMIT * CLOCKS_PER_SEC)
         return LOSE;
 
-    for (register int x; x < SIZE; x++)
+    for (register int x = 0; x < SIZE; x++)
     {
-        for (register int y; y < SIZE; y++)
+        for (register int y = 0; y < SIZE; y++)
         {
-            if (board[x][y] == 2048)
-                    return WIN;
+            if (board[x][y] == 2048) return WIN;
         }
     }
 
@@ -180,9 +207,9 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
     if (!blank(board))
     {
         /* if board is not blank, check adjacent cells are identical. */
-        for (register int x; x < SIZE; x++)
+        for (register int x = 0; x < SIZE; x++)
         {
-            for (register int y; y < SIZE; y++)
+            for (register int y = 0; y < SIZE; y++)
             {
                 for (register int dx = (x > 0 ? -1 : 0); dx <= (x < SIZE - 1 ? 1 : 0); ++dx)
                 {
@@ -190,8 +217,7 @@ int check(int board[SIZE][SIZE], int prev_board[SIZE][SIZE], SCORE *score){
                     {
                         if (dx + dy == 1 || dx + dy == -1)
                         {
-                            if (board[x][y] == board[x + dx][y + dy])
-                                return 0;
+                            if (board[x][y] == board[x + dx][y + dy]) return 0;
                         }
                     }
                 }
@@ -217,7 +243,7 @@ void add_ranking(SCORE record){
         if(_getch()) exit(1);
     }
 
-    while (fscanf(fp, "%s %d %d %ld %d %d\n", &tmp.name,  &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) == 6)
+    while (fscanf(fp, "%s %d %d %ld %d %d\n", tmp.name,  &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) == 6)
     {
         if (flag)
             fprintf(out, "%s %d %d %ld %d %d\n", tmp.name, tmp.isWin, tmp.moves, tmp.Total_Time, tmp.combo, tmp.Total_score);
@@ -242,7 +268,7 @@ void add_ranking(SCORE record){
     fclose(fp);
     fclose(out);
     remove("save.txt");
-    if (!rename("tmp.txt", "save.txt"))
+    if (rename("tmp.txt", "save.txt"))
     {
         printf("Rename Error");
         if(_getch()) return;
@@ -268,17 +294,22 @@ void display_board(int board[SIZE][SIZE], SCORE score)
     /* print board status and combo, moves, remaining time. */
     int remain = (int) (T_LIMIT - (clock() - score.start) / CLOCKS_PER_SEC);
     register int row, columns;
+    int dummy; 
 
     printf("%d combo, %d moves, %d score, %d : %d ...\n", score.combo, score.moves, score.Total_score, remain / 60, remain % 60);
 
     for (row = 0; row < SIZE; row++)
     {
+        printf("---------------------\n|");
         for (columns = 0; columns < SIZE; columns++)
         {
-            printf("%d     ", board[row][columns]);
+            if(!(dummy = board[row][columns])) printf("    |");
+            else printf("%4d|", dummy);
         }
         printf("\n");
     }
+
+    printf("---------------------\n");
 
     printf(">>>");
     return;
@@ -296,12 +327,7 @@ int in_game(){
     int board[SIZE][SIZE] = {0};
     int prev_board[SIZE][SIZE] = {0};
 
-    int* (*dir_board)[SIZE] = {0};
-    dir_board = malloc(sizeof(int[SIZE][SIZE]));
-    if(!dir_board[0][0]) {
-        fprintf(stderr, "Failed to allocate dir_board");
-        if(_getch()) exit(1);
-    }
+    int *dir_board[SIZE][SIZE] = {0};
     
     random_gen(board);
     for(register int i = 0; i < SIZE; i++){
@@ -338,7 +364,6 @@ int in_game(){
         if (wl = check(board, prev_board, &new_score)) break;
     }
 
-    free(dir_board);
 
     if(wl == WIN) {
         printf("You Win! Your name? : ");
@@ -394,7 +419,7 @@ int show_ranking(){
     printf("-------------------------------------------------------\n");
     while(!feof(fp)){
 
-        if(fscanf(fp, "%s %d %d %ld %d %d\n", &tmp.name, &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) != 6) break;
+        if(fscanf(fp, "%s %d %d %ld %d %d\n", tmp.name, &tmp.isWin, &tmp.moves, &tmp.Total_Time, &tmp.combo, &tmp.Total_score) != 6) break;
         else printf("|%8s|%8s|%8d|%8d|%8d|%8d|\n", tmp.name, (tmp.isWin == WIN)? "Win" : "Lose", tmp.moves, (int) tmp.Total_Time / CLOCKS_PER_SEC, tmp.combo, tmp.Total_score);
     }
     printf("=======================================================\n");
@@ -426,19 +451,19 @@ int main(void){
                 case 'a':
                     if(!in_game()){
                         printf("Unusual behavior.");
-                        flag = 0;
+                        if(_getch()) flag = 0;
                     }
                     break;
                 case 'b':
                     if(!how_to()){
                         printf("Unusual behavior.");
-                        flag = 0;
+                        if(_getch()) flag = 0;
                     }
                     break;
                 case 'c':
                     if(!show_ranking()){
                         printf("Unusual behavior");
-                        flag = 0;
+                        if(_getch()) flag = 0;
                     } 
                     break;
                 case 'e':
